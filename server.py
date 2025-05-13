@@ -56,6 +56,7 @@ def handle_client(conn, player_id):
 
                     if board[cell] != '-':
                         conn.sendall(b"INVALID\n")
+                        conn.sendall(b"YOUR_TURN\n")
                         continue
 
                     board[cell] = 'X' if player_id == 0 else 'O'
