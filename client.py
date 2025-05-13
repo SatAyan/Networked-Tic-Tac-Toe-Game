@@ -26,8 +26,11 @@ def main():
                 elif line == "START":
                     print("Game started!")
                 elif line.startswith("BOARD"):
-                    _, state = line.split()
-                    print_board(state)
+                    parts = line.split(maxsplit=1)
+                    if len(parts) == 2:
+                        _, state = parts
+                        print_board(state)
+
                 elif line.startswith("YOUR_TURN"):
                     move = input("Your move (0-8): ")
                     s.sendall(f"MOVE {move}\n".encode())
