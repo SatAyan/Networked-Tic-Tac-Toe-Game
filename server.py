@@ -48,6 +48,10 @@ def handle_client(conn, player_id):
             if message.startswith("MOVE"):
                 _, cell = message.split()
                 cell = int(cell)
+                if cell > 8 or cell < 0:
+                    conn.sendall(b"INVALID\n")
+                    conn.sendall(b"YOUR_TURN\n")
+                    continue
 
                 with lock:
                     if player_id != current_turn:
