@@ -4,7 +4,8 @@ import threading
 HOST = 'localhost'
 PORT = 21019
 
-board = [' '] * 9
+# Use '-' instead of space to represent empty cells
+board = ['-'] * 9
 players = []
 player_sockets = [None, None]
 current_turn = 0
@@ -14,7 +15,7 @@ lock = threading.Lock()
 def check_win():
     combos = [(0,1,2),(3,4,5),(6,7,8),(0,3,6),(1,4,7),(2,5,8),(0,4,8),(2,4,6)]
     for a, b, c in combos:
-        if board[a] == board[b] == board[c] != ' ':
+        if board[a] == board[b] == board[c] != '-':
             return True
     return False
 
@@ -53,7 +54,7 @@ def handle_client(conn, player_id):
                         conn.sendall(b"WAIT\n")
                         continue
 
-                    if board[cell] != ' ':
+                    if board[cell] != '-':
                         conn.sendall(b"INVALID\n")
                         continue
 
@@ -67,7 +68,7 @@ def handle_client(conn, player_id):
                         conn.sendall(b"WIN\n")
                         player_sockets[opponent].sendall(b"LOSE\n")
                         break
-                    elif ' ' not in board:
+                    elif '-' not in board:
                         broadcast("DRAW")
                         break
 
@@ -102,4 +103,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
