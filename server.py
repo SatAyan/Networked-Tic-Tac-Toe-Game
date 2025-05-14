@@ -2,7 +2,7 @@ import socket
 import threading
 
 HOST = 'localhost'
-PORT = 21019
+PORT = 19021
 
 # Use '-' instead of space to represent empty cells
 board = ['-'] * 9

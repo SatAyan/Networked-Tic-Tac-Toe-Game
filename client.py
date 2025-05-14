@@ -1,7 +1,7 @@
 import socket
 
 HOST = 'localhost'
-PORT = 21019
+PORT = 19021
 
 def print_board(state):
     # Replace placeholder '-' back with spaces for nicer output
