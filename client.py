@@ -1,7 +1,7 @@
 import socket
 
 HOST = 'localhost'
-PORT = 19021
+PORT = 21019
 
 def print_board(state):
     # Replace placeholder '-' back with spaces for nicer output
@@ -57,6 +57,9 @@ def main():
                 elif line == "BYE":
                     print("Game ended.")
                     return
+                elif line == "JOINED_LOBBY":
+                    print("Waiting for an opponent to join...")
+
 
 if __name__ == "__main__":
     main()
