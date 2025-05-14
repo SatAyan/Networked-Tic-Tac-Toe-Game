@@ -24,11 +24,12 @@ This is a **multiplayer Tic Tac Toe game** built using **Python sockets** and **
 
 ✅ **Real-Time Game Updates**: Each move is communicated between players in real time. The server keeps track of the board state and current turn.
 
+✅ **Game Persistence**: Each game is assigned a unique ID, and board state is managed per game.
+
 ✅ **Robust Input Validation**: Invalid inputs (letters, symbols, numbers outside 0–8) are caught and do not crash the program. Players are notified and prompted to try again.
 
 ✅ **Custom Text-Based Protocol**:
 - Messages are exchanged using plain text strings like `JOINED_LOBBY`, `MOVE 4`, `WIN`, `DRAW`, etc.
-- All messages are newline-terminated and follow a simple, readable encryption-free format for clarity and extensibility.
 
 ---
 
@@ -389,8 +390,4 @@ You lose!
 No external libraries are required.
 
 ---
-
-## Authors
-
-This project was developed as a final project for a **Network Programming** class.
 
