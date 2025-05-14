@@ -4,7 +4,6 @@ HOST = 'localhost'
 PORT = 21019
 
 def print_board(state):
-    # Replace placeholder '-' back with spaces for nicer output
     state = state.replace('-', ' ')
     state = state.ljust(9)
     print(f"{state[0]} | {state[1]} | {state[2]}")
