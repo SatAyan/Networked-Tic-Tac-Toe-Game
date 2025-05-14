@@ -1,10 +1,12 @@
 import socket
 import threading
+import uuid
 
 HOST = 'localhost'
 PORT = 21019
 
 lobby = []
+active_games = {}
 lock = threading.Lock()
 
 def check_win(board):
@@ -17,84 +19,107 @@ def check_win(board):
 def board_string(board):
     return ''.join(board)
 
-def game_thread(player_sockets, game_id):
-    board = ['-'] * 9
-    current_turn = 0
+def send_to_players(players, message):
+    for p in players:
+        if p:
+            try:
+                p.sendall(message.encode())
+            except:
+                continue
+
+def game_thread(game_id):
+    with lock:
+        board, players, current_turn = active_games[game_id]
+
     print(f"[Game {game_id}] Started.")
+    send_to_players(players, f"GAME_ID {game_id}\n")
 
-    for i, conn in enumerate(player_sockets):
-        conn.sendall(f"WELCOME {i+1}\n".encode())
-    for conn in player_sockets:
-        conn.sendall(b"START\n")
-        conn.sendall(f"BOARD {board_string(board)}\n".encode())
+    for i, conn in enumerate(players):
+        if conn:
+            conn.sendall(f"WELCOME {i+1}\n".encode())
+            conn.sendall(b"START\n")
+            conn.sendall(f"BOARD {board_string(board)}\n".encode())
 
-    player_sockets[current_turn].sendall(b"YOUR_TURN\n")
-    player_sockets[1 - current_turn].sendall(b"WAIT\n")
+    def send_turn():
+        if players[current_turn]:
+            players[current_turn].sendall(b"YOUR_TURN\n")
+        if players[1 - current_turn]:
+            players[1 - current_turn].sendall(b"WAIT\n")
+
+    send_turn()
 
     while True:
+        conn = players[current_turn]
+        if not conn:
+            current_turn = 1 - current_turn
+            continue
         try:
-            conn = player_sockets[current_turn]
             data = conn.recv(1024)
             if not data:
-                break
+                raise ConnectionResetError()
             message = data.decode().strip()
+
+            if message == "QUIT":
+                print(f"[Game {game_id}] Player {current_turn} quit.")
+                other = players[1 - current_turn]
+                if other:
+                    other.sendall(b"OPPONENT_LEFT\n")
+                    with lock:
+                        lobby.append(other)
+                break
 
             if message.startswith("MOVE"):
                 parts = message.split()
                 if len(parts) != 2 or not parts[1].isdigit():
                     conn.sendall(b"INVALID\nYOUR_TURN\n")
                     continue
-
                 cell = int(parts[1])
-                if cell < 0 or cell > 8:
-                    conn.sendall(b"INVALID\nYOUR_TURN\n")
-                    continue
-
-                if board[cell] != '-':
+                if cell < 0 or cell > 8 or board[cell] != '-':
                     conn.sendall(b"INVALID\nYOUR_TURN\n")
                     continue
 
                 board[cell] = 'X' if current_turn == 0 else 'O'
                 conn.sendall(b"VALID\n")
-                for sock in player_sockets:
-                    sock.sendall(f"BOARD {board_string(board)}\n".encode())
-                player_sockets[1 - current_turn].sendall(f"MOVE {cell}\n".encode())
+                send_to_players(players, f"BOARD {board_string(board)}\n")
+                if players[1 - current_turn]:
+                    players[1 - current_turn].sendall(f"MOVE {cell}\n".encode())
 
                 if check_win(board):
                     conn.sendall(b"WIN\n")
-                    player_sockets[1 - current_turn].sendall(b"LOSE\n")
+                    if players[1 - current_turn]:
+                        players[1 - current_turn].sendall(b"LOSE\n")
                     break
                 elif '-' not in board:
-                    for sock in player_sockets:
-                        sock.sendall(b"DRAW\n")
+                    send_to_players(players, "DRAW\n")
                     break
 
                 current_turn = 1 - current_turn
-                player_sockets[current_turn].sendall(b"YOUR_TURN\n")
-                player_sockets[1 - current_turn].sendall(b"WAIT\n")
-
-            elif message == "QUIT":
-                for sock in player_sockets:
-                    sock.sendall(b"BYE\n")
-                break
-
-        except Exception as e:
-            print(f"[Game {game_id}] Error: {e}")
+                with lock:
+                    active_games[game_id] = (board, players, current_turn)
+                send_turn()
+        except:
+            print(f"[Game {game_id}] Player {current_turn} disconnected.")
+            other = players[1 - current_turn]
+            if other:
+                other.sendall(b"OPPONENT_LEFT\n")
+                with lock:
+                    lobby.append(other)
             break
 
-    for conn in player_sockets:
-        conn.close()
+    with lock:
+        del active_games[game_id]
     print(f"[Game {game_id}] Ended.")
 
 def lobby_manager():
-    game_id = 1
     while True:
         with lock:
             if len(lobby) >= 2:
                 player1 = lobby.pop(0)
                 player2 = lobby.pop(0)
-                threading.Thread(target=game_thread, args=([player1, player2], game_id)).start()
-                game_id += 1
+                board = ['-'] * 9
+                game_id = str(uuid.uuid4())[:8]
+                active_games[game_id] = (board, [player1, player2], 0)
+                threading.Thread(target=game_thread, args=(game_id,), daemon=True).start()
 
 def client_handler(conn, addr):
     print(f"Client connected from {addr}")
@@ -104,15 +129,14 @@ def client_handler(conn, addr):
 
 def main():
     threading.Thread(target=lobby_manager, daemon=True).start()
-
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
         s.listen()
         print(f"Server running on {HOST}:{PORT}")
-
         while True:
             conn, addr = s.accept()
             threading.Thread(target=client_handler, args=(conn, addr), daemon=True).start()
 
 if __name__ == "__main__":
     main()
+

@@ -15,7 +15,7 @@ def print_board(state):
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
-        s.sendall(b"JOIN\n")
+        print("Connected to server.")
 
         while True:
             data = s.recv(1024).decode()
@@ -23,23 +23,32 @@ def main():
                 break
 
             for line in data.strip().split('\n'):
-                if line.startswith("WELCOME"):
+                if line == "JOINED_LOBBY":
+                    print("Waiting for opponent...")
+                elif line.startswith("WELCOME"):
                     print(line)
+                elif line.startswith("GAME_ID"):
+                    print(f"Game ID: {line.split()[1]}")
                 elif line == "START":
                     print("Game started!")
                 elif line.startswith("BOARD"):
-                    parts = line.split(maxsplit=1)
-                    if len(parts) == 2:
-                        _, state = parts
-                        print_board(state)
-                elif line.startswith("YOUR_TURN"):
-                    move = input("Your move (0-8): ")
-                    s.sendall(f"MOVE {move}\n".encode())
-                elif line.startswith("WAIT"):
-                    print("Waiting for opponent...")
-                elif line.startswith("VALID"):
+                    _, board = line.split()
+                    print_board(board)
+                elif line == "YOUR_TURN":
+                    while True:
+                        move = input("Your move (0-8 or 'quit'): ").strip()
+                        if move.lower() == "quit":
+                            s.sendall(b"QUIT\n")
+                            return
+                        if move.isdigit() and 0 <= int(move) <= 8:
+                            s.sendall(f"MOVE {move}\n".encode())
+                            break
+                        print("Invalid input.")
+                elif line == "WAIT":
+                    print("Waiting for opponent's move...")
+                elif line == "VALID":
                     print("Move accepted.")
-                elif line.startswith("INVALID"):
+                elif line == "INVALID":
                     print("Invalid move. Try again.")
                 elif line.startswith("MOVE"):
                     _, pos = line.split()
@@ -53,12 +62,10 @@ def main():
                 elif line == "DRAW":
                     print("It's a draw!")
                     return
-                elif line == "BYE":
-                    print("Game ended.")
-                    return
-                elif line == "JOINED_LOBBY":
-                    print("Waiting for an opponent to join...")
-
+                elif line == "OPPONENT_LEFT":
+                    print("Your opponent left. You will be matched with a new one.")
+                    break
 
 if __name__ == "__main__":
     main()
+
